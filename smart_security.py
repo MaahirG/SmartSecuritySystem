@@ -9,11 +9,6 @@ import imutils
 import time
 import cv2
 
-# construct the argument parser and parse the arguments
-ap = argparse.ArgumentParser()
-ap.add_argument("-a", "--min-area", type=int, default=500, help="minimum area size")
-args = vars(ap.parse_args())
-
 # reading from webcam
 vs = VideoStream(src=0).start()
 time.sleep(1.0)
@@ -26,7 +21,6 @@ while True:
 	# grab the current frame and initialize the occupied/unoccupied
 	# text
 	frame = vs.read()
-	frame = frame if args.get("video", None) is None else frame[1]
 	text = "Unoccupied"
 
 	# if the frame could not be grabbed, then we have reached the end of the video
@@ -43,7 +37,6 @@ while True:
 		print(frame)
 		firstFrame = gray
 		continue
-
 
 	# Object Detection/Edge Detection
 	# compute the absolute elementwise (two arrays) difference between the current frame and first frame
@@ -63,7 +56,7 @@ while True:
 	# loop over the contours - loop through lists inside tuple containing respective contour x,y coords (depending on how many objects were detected separate) - if 1 object, one list in the tuple
 	for c in cnts:
 		# if the contour is too small, ignore it
-		if cv2.contourArea(c) < args["min_area"]:  	# 500 default, area based on boundary coordinates from contour
+		if cv2.contourArea(c) < 500:  	# 500 default, area based on boundary coordinates from contour
 			continue								# disregard but keep looping the rest of the contours
 		
 		# compute the bounding box for the contour, draw it on the frame, and update the text
@@ -87,5 +80,5 @@ while True:
 		break
 
 # cleanup the camera and close any open windows
-vs.stop() if args.get("video", None) is None else vs.release()
+vs.stop()
 cv2.destroyAllWindows()
