@@ -10,6 +10,7 @@ import time
 import cv2
 import numpy
 
+
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
 
@@ -33,7 +34,7 @@ while True:
 	haarFrame = frame
 	grayHaar = cv2.cvtColor(haarFrame, cv2.COLOR_BGR2GRAY)
 	faces = face_cascade.detectMultiScale(grayHaar, 1.3, 5)         # tuning params based on size
-    
+	
 	for (x,y,w,h) in faces: # only enters loop if non empty
 		cv2.rectangle(haarFrame, (x,y), (x+w,y+h), (255,0,0), 2)
 		roi_gray = grayHaar[y:y+h, x:x+w]                           # create a smaller region inside faces to detect eyes --> won't find eye outside of face
@@ -41,7 +42,7 @@ while True:
 		eyes = eye_cascade.detectMultiScale(roi_gray)
 		for (ex, ey, ew, eh) in eyes:
 			cv2.rectangle(roi_color, (ex,ey), (ex+ew, ey+eh), (0,0,255), 2)
-        
+		
 	
 	# resize the frame, convert it to grayscale, and blur it
 	frame = imutils.resize(frame, width=500)
