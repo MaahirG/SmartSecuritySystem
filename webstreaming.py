@@ -1,48 +1,4 @@
-
-
-from flask import Flask, render_template, Response
-from Code import web
-from web import MotionFacialDetector
-
-app = Flask(__name__)
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-
-
-def gen(detectionObject):
-       
-    detectionObject.detection()
-
-    #frame = camera.get_frame()
-    yield (b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-
-
-@app.route('/video_feed')
-def video_feed():
-    return Response(gen(MotionFacialDetector()), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
-
-
-
-
-
-############ 
-# pyimagesearch tutorial
-
-
-
-# python webstreaming.py --ip 0.0.0.0 --port 8000
-
-# import the necessary packages
-from pyimagesearch.motion_detection import SingleMotionDetector
+# python webstreaming.py --ip 192.168.0.20 --port 8000
 from imutils.video import VideoStream
 from flask import Response
 from flask import Flask
@@ -54,77 +10,107 @@ import imutils
 import time
 import cv2
 
-# initialize the output frame and a lock used to ensure thread-safe
-# exchanges of the output frames (useful for multiple browsers/tabs
-# are viewing tthe stream)
-outputFrame = None
-lock = threading.Lock()
+
+# initialize the output frame and a lock used to ensure thread-safe exchanges of the output frames (useful for multiple browsers/tabs are viewing tthe stream)
+outputFrame = None			# Frame post motion pushed to server
+lock = threading.Lock()		# for concurrency multi user
+
 
 # initialize a flask object
 app = Flask(__name__)
 
-# initialize the video stream and allow the camera sensor to
-# warmup
-#vs = VideoStream(usePiCamera=1).start()
-vs = VideoStream(src=0).start()
+
+# initialize the video stream and allow the camera to warmup
+video = VideoStream(src=0).start()
 time.sleep(2.0)
+
 
 @app.route("/")
 def index():
 	# return the rendered template
 	return render_template("index.html")
 
-def detect_motion(frameCount):
-	# grab global references to the video stream, output frame, and
-	# lock variables
-	global vs, outputFrame, lock
 
-	# initialize the motion detector and the total number of frames
-	# read thus far
-	md = SingleMotionDetector(accumWeight=0.1)
-	total = 0
+def detect():
+	# grab global references to the video stream, output frame, and lock variables
+	global video, outputFrame, lock
 
-	# loop over frames from the video stream
+	#motionObj = MotionFacialDetector()
+
+	face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+	eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
+
+	# initialize the first frame in the video stream
+	firstFrame = None
+
+	# loop over the frames of the video
 	while True:
-		# read the next frame from the video stream, resize it,
-		# convert the frame to grayscale, and blur it
-		frame = vs.read()
+		# grab the current frame and initialize the occupied/unoccupied text
+		frame = video.read()
+		text = "Unoccupied"
+		frame = imutils.resize(frame, width=500)
 
-		frame = imutils.resize(frame, width=400)
-		gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-		gray = cv2.GaussianBlur(gray, (7, 7), 0)
+		# if the frame could not be grabbed, then we have reached the end of the video
+		if frame is None:
+			break
 
-		# grab the current timestamp and draw it on the frame
-		timestamp = datetime.datetime.now()
-		cv2.putText(frame, timestamp.strftime(
-			"%A %d %B %Y %I:%M:%S%p"), (10, frame.shape[0] - 10),
-			cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
 
-		# if the total number of frames has reached a sufficient
-		# number to construct a reasonable background model, then
-		# continue to process the frame
-		if total > frameCount:
-			# detect motion in the image
-			motion = md.detect(gray)
-
-			# cehck to see if motion was found in the frame
-			if motion is not None:
-				# unpack the tuple and draw the box surrounding the
-				# "motion area" on the output frame
-				(thresh, (minX, minY, maxX, maxY)) = motion
-				cv2.rectangle(frame, (minX, minY), (maxX, maxY),
-					(0, 0, 255), 2)
+		haarFrame = frame
+		grayHaar = cv2.cvtColor(haarFrame, cv2.COLOR_BGR2GRAY)
+			
+		faces = face_cascade.detectMultiScale(grayHaar, 1.3, 5)         # tuning params based on size
+			
+		for (x,y,w,h) in faces: # only enters loop if non empty
+			cv2.rectangle(haarFrame, (x,y), (x+w,y+h), (255,0,0), 2)
+			roi_gray = grayHaar[y:y+h, x:x+w]                           # create a smaller region inside faces to detect eyes --> won't find eye outside of face
+			roi_color = haarFrame[y:y+h, x:x+w]
+			eyes = eye_cascade.detectMultiScale(roi_gray)
+			for (ex, ey, ew, eh) in eyes:
+				cv2.rectangle(roi_color, (ex,ey), (ex+ew, ey+eh), (0,0,255), 2)			
 		
-		# update the background model and increment the total number
-		# of frames read thus far
-		md.update(gray)
-		total += 1
 
-		# acquire the lock, set the output frame, and release the
-		# lock
+		# use grayHaar already grayscale frame for blur
+		gray = cv2.GaussianBlur(grayHaar, (21, 21), 0)
+		
+		# if the first frame is None, initialize it
+		if firstFrame is None:
+			firstFrame = gray
+			continue
+
+		#contourList = motionObj.motionDetector(firstFrame, gray)
+		frameDelta = cv2.absdiff(firstFrame, gray) # new array of differences in pixels
+		thresh = cv2.threshold(frameDelta, 25, 255, cv2.THRESH_BINARY)[1] # new array of thresholded (camera inaccuracies) differences in pixels returned as thresh
+
+		# dilate the thresholded image to fill in holes, then find contours on thresholded image
+		thresh = cv2.dilate(thresh, None, iterations=2)  # dilation fills in neighbouring pixels as 1 (for binary) to add pixels to the outer border (dilating pixels in the threshold array)
+		cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)	# CHAIN_APPROX_SIMPLE takes away redundancies when highlighting the curves/joining parts of a threshold frameDelta
+		# cnts is a tuple - should have 2 things inside - a vector of vectors all separate contours (with xy vector of coords defining contour) and a vector of hierarchies
+		# once we grab contours (tuple of relevant x,y coords highlighting the curves joining a shape)
+		#print(type(cnts))
+		#print(cnts)
+		cnts = imutils.grab_contours(cnts) # grabs only the x,y coord tuple
+		
+		# loop over the contours - loop through lists inside tuple containing respective contour x,y coords (depending on how many objects were detected separate) - if 1 object, one list in the tuple
+		for c in cnts:
+			# if the contour is too small, ignore it
+			if cv2.contourArea(c) < 500:  	# 500 default, area based on boundary coordinates from contour
+				continue								# disregard but keep looping the rest of the contours
+			
+			# compute the bounding box for the contour, draw it on the frame, and update the text
+			(x, y, w, h) = cv2.boundingRect(c)								# gets rectangle dimensions based on entire list of contour coords
+			cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+			text = "Occupied"
+
+		# draw the text and timestamp on the frame
+		cv2.putText(frame, "Room Status: {}".format(text), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+		cv2.putText(frame, datetime.datetime.now().strftime("%A %d %B %Y %I:%M:%S%p"), (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 1)
+		
+
 		with lock:
 			outputFrame = frame.copy()
-		
+
+
+
 def generate():
 	# grab global references to the output frame and lock variables
 	global outputFrame, lock
@@ -133,8 +119,7 @@ def generate():
 	while True:
 		# wait until the lock is acquired
 		with lock:
-			# check if the output frame is available, otherwise skip
-			# the iteration of the loop
+			# check if the output frame is available, otherwise skip the iteration of the loop
 			if outputFrame is None:
 				continue
 
@@ -146,15 +131,15 @@ def generate():
 				continue
 
 		# yield the output frame in the byte format
-		yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + 
-			bytearray(encodedImage) + b'\r\n')
+		yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImage) + b'\r\n')
+
+
 
 @app.route("/video_feed")
 def video_feed():
-	# return the response generated along with the specific media
-	# type (mime type)
-	return Response(generate(),
-		mimetype = "multipart/x-mixed-replace; boundary=frame")
+	# return the response generated along with the specific media type (mime type)
+	return Response(generate(), mimetype = "multipart/x-mixed-replace; boundary=frame")
+
 
 # check to see if this is the main thread of execution
 if __name__ == '__main__':
@@ -169,8 +154,7 @@ if __name__ == '__main__':
 	args = vars(ap.parse_args())
 
 	# start a thread that will perform motion detection
-	t = threading.Thread(target=detect_motion, args=(
-		args["frame_count"],))
+	t = threading.Thread(target=detect)
 	t.daemon = True
 	t.start()
 
@@ -179,4 +163,4 @@ if __name__ == '__main__':
 		threaded=True, use_reloader=False)
 
 # release the video stream pointer
-vs.stop()
+video.stop()
