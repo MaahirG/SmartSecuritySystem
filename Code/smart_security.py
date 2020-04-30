@@ -26,24 +26,23 @@ while True:
 	frame = vs.read()
 	text = "Unoccupied"
 	
-	forHaar = frame
-	grayHaar = cv2.cvtColor(forHaar, cv2.COLOR_BGR2GRAY)
-	faces = face_cascade.detectMultiScale(grayHaar, 1.3, 5)         # tuning params based on size
-    
-	for (x,y,w,h) in faces: # only enters loop if non empty
-		cv2.rectangle(forHaar, (x,y), (x+w,y+h), (255,0,0), 2)
-		roi_gray = grayHaar[y:y+h, x:x+w]                           # create a smaller region inside faces to detect eyes --> won't find eye outside of face
-		roi_color = forHaar[y:y+h, x:x+w]
-		eyes = eye_cascade.detectMultiScale(roi_gray)
-		for (ex, ey, ew, eh) in eyes:
-			cv2.rectangle(roi_color, (ex,ey), (ex+ew, ey+eh), (0,0,255), 2)
-        
-	cv2.imshow('Haar Face Detection Algorithm', forHaar)
-
 	# if the frame could not be grabbed, then we have reached the end of the video
 	if frame is None:
 		break
 
+	haarFrame = frame
+	grayHaar = cv2.cvtColor(haarFrame, cv2.COLOR_BGR2GRAY)
+	faces = face_cascade.detectMultiScale(grayHaar, 1.3, 5)         # tuning params based on size
+    
+	for (x,y,w,h) in faces: # only enters loop if non empty
+		cv2.rectangle(haarFrame, (x,y), (x+w,y+h), (255,0,0), 2)
+		roi_gray = grayHaar[y:y+h, x:x+w]                           # create a smaller region inside faces to detect eyes --> won't find eye outside of face
+		roi_color = haarFrame[y:y+h, x:x+w]
+		eyes = eye_cascade.detectMultiScale(roi_gray)
+		for (ex, ey, ew, eh) in eyes:
+			cv2.rectangle(roi_color, (ex,ey), (ex+ew, ey+eh), (0,0,255), 2)
+        
+	
 	# resize the frame, convert it to grayscale, and blur it
 	frame = imutils.resize(frame, width=500)
 	gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -84,6 +83,10 @@ while True:
 	# draw the text and timestamp on the frame
 	cv2.putText(frame, "Room Status: {}".format(text), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 	cv2.putText(frame, datetime.datetime.now().strftime("%A %d %B %Y %I:%M:%S%p"), (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 1)
+
+
+	cv2.imshow('Haar Face Detection Algorithm', haarFrame)
+
 
 	# show the frame and record if the user presses a key
 	cv2.imshow("Documented Background", firstFrame)
