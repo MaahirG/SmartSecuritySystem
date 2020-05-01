@@ -1,4 +1,10 @@
 # python webstreaming.py --ip 192.168.0.20 --port 8000
+
+# Tunable parameters: 
+# min area for contour, dilation iterations, threshold for pixel density difference
+# cascade params, image resize and corresponding gaussian blur, accumulated weight avg
+
+
 from imutils.video import VideoStream
 from flask import Response
 from flask import Flask
@@ -42,58 +48,68 @@ def detect():
 
 	# initialize the first frame in the video stream
 	firstFrame = None
-
+	avg = None
 	# loop over the frames of the video
 	while True:
 		# grab the current frame and initialize the occupied/unoccupied text
 		frame = video.read()
 		text = "Unoccupied"
-		frame = imutils.resize(frame, width=500)
+		frame = imutils.resize(frame, width=625)
 
 		# if the frame could not be grabbed, then we have reached the end of the video
 		if frame is None:
 			break
 
-
 		haarFrame = frame
 		grayHaar = cv2.cvtColor(haarFrame, cv2.COLOR_BGR2GRAY)
-			
 		faces = face_cascade.detectMultiScale(grayHaar, 1.3, 5)         # tuning params based on size
-			
+		
 		for (x,y,w,h) in faces: # only enters loop if non empty
 			cv2.rectangle(haarFrame, (x,y), (x+w,y+h), (255,0,0), 2)
 			roi_gray = grayHaar[y:y+h, x:x+w]                           # create a smaller region inside faces to detect eyes --> won't find eye outside of face
 			roi_color = haarFrame[y:y+h, x:x+w]
 			eyes = eye_cascade.detectMultiScale(roi_gray)
 			for (ex, ey, ew, eh) in eyes:
-				cv2.rectangle(roi_color, (ex,ey), (ex+ew, ey+eh), (0,0,255), 2)			
+				cv2.rectangle(roi_color, (ex,ey), (ex+ew, ey+eh), (0,0,255), 2)
+			
 		
-
-		# use grayHaar already grayscale frame for blur
-		gray = cv2.GaussianBlur(grayHaar, (21, 21), 0)
+		# Blur the resized and grayscaled frame
+		gray = cv2.GaussianBlur(grayHaar, (25, 25), 0)
 		
 		# if the first frame is None, initialize it
 		if firstFrame is None:
 			firstFrame = gray
 			continue
 
-		#contourList = motionObj.motionDetector(firstFrame, gray)
-		frameDelta = cv2.absdiff(firstFrame, gray) # new array of differences in pixels
-		thresh = cv2.threshold(frameDelta, 25, 255, cv2.THRESH_BINARY)[1] # new array of thresholded (camera inaccuracies) differences in pixels returned as thresh
+		# if the average frame is None, initialize it
+		if avg is None:
+			avg = gray.copy().astype("float")
+			continue
+
+		# Object Detection/Edge Detection
+
+		# accumulate the weighted average between the current frame and (accumulated)previous frames, then compute the difference between the current frame and running average
+		cv2.accumulateWeighted(firstFrame, avg, 0.5)	# avg is accumulated slight differences in pixels over the iteration of frames, 0.5 is weight for gray frame
+		frameDelta = cv2.absdiff(firstFrame, gray)
+
+		# compute the absolute elementwise (two arrays) difference between the current frame and first frame
+		# frameDelta = cv2.absdiff(firstFrame, gray) # new array of differences in pixels
+		thresh = cv2.threshold(frameDelta, 55, 255, cv2.THRESH_BINARY)[1] # new array of thresholded (camera inaccuracies) differences in pixels returned as thresh
+		
 
 		# dilate the thresholded image to fill in holes, then find contours on thresholded image
-		thresh = cv2.dilate(thresh, None, iterations=2)  # dilation fills in neighbouring pixels as 1 (for binary) to add pixels to the outer border (dilating pixels in the threshold array)
+		thresh = cv2.dilate(thresh, None, iterations=6)  # dilation fills in neighbouring pixels as 1 (for binary) to add pixels to the outer border (dilating pixels in the threshold array)
 		cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)	# CHAIN_APPROX_SIMPLE takes away redundancies when highlighting the curves/joining parts of a threshold frameDelta
 		# cnts is a tuple - should have 2 things inside - a vector of vectors all separate contours (with xy vector of coords defining contour) and a vector of hierarchies
 		# once we grab contours (tuple of relevant x,y coords highlighting the curves joining a shape)
-		#print(type(cnts))
-		#print(cnts)
+		# print(type(cnts))
+		# print(cnts)
 		cnts = imutils.grab_contours(cnts) # grabs only the x,y coord tuple
-		
+
 		# loop over the contours - loop through lists inside tuple containing respective contour x,y coords (depending on how many objects were detected separate) - if 1 object, one list in the tuple
 		for c in cnts:
 			# if the contour is too small, ignore it
-			if cv2.contourArea(c) < 500:  	# 500 default, area based on boundary coordinates from contour
+			if cv2.contourArea(c) < 800:  	# area based on boundary coordqinates from contour
 				continue								# disregard but keep looping the rest of the contours
 			
 			# compute the bounding box for the contour, draw it on the frame, and update the text
@@ -104,7 +120,7 @@ def detect():
 		# draw the text and timestamp on the frame
 		cv2.putText(frame, "Room Status: {}".format(text), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 		cv2.putText(frame, datetime.datetime.now().strftime("%A %d %B %Y %I:%M:%S%p"), (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 1)
-		
+
 
 		with lock:
 			outputFrame = frame.copy()
