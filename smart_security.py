@@ -13,6 +13,14 @@ import time
 import cv2
 import numpy
 
+import RPi.GPIO as GPIO
+
+GPIO.setmode(GPIO.BOARD)    # pin #'s are gpio spots
+
+GPIO.setup(11, GPIO.OUT)
+servo = GPIO.PWM(11,50)      # 50 is pulse rate (Hz)
+
+servo.start(7)
 
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
@@ -24,6 +32,15 @@ time.sleep(1.0)
 # initialize the first frame in the video stream
 firstFrame = None
 avg = None
+
+def SetAngle(angle):
+	duty = (angle / 18) + 2
+	GPIO.output(11, True)
+	servo.ChangeDutyCycle(duty)
+	time.sleep(1)
+	GPIO.output(11, False)
+	servo.ChangeDutyCycle(0)
+
 
 # loop over the frames of the video
 while True:
@@ -41,6 +58,19 @@ while True:
 	faces = face_cascade.detectMultiScale(grayHaar, 1.3, 5)         # tuning params based on size
 	
 	for (x,y,w,h) in faces: # only enters loop if non empty
+		print("x is: ", x, " y is: ", y, " w is: ", w, " h is: ", h)
+		if(x > 300):
+			SetAngle(180)
+		elif(x<=300 and x > 240):
+			SetAngle(144)	
+		elif(x<=240 and x > 180):
+			SetAngle(108)
+		elif(x<=180 and x > 120):
+			SetAngle(72)
+		elif(x<=120 and x > 60):
+			SetAngle(36)
+		elif(x<=60 and x >= 0):
+			SetAngle(0)
 		cv2.rectangle(haarFrame, (x,y), (x+w,y+h), (255,0,0), 2)
 		roi_gray = grayHaar[y:y+h, x:x+w]                           # create a smaller region inside faces to detect eyes --> won't find eye outside of face
 		roi_color = haarFrame[y:y+h, x:x+w]
@@ -110,6 +140,11 @@ while True:
 
 	# if the `q` key is pressed, break from the lop
 	if key == ord("q"):
+		servo.ChangeDutyCycle(2)
+		time.sleep(1)
+		servo.stop()
+		GPIO.cleanup()
+		print("BYE SERVO")
 		break
 
 # cleanup the camera and close any open windows
