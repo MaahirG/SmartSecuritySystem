@@ -22,8 +22,8 @@ servo = GPIO.PWM(11,50)      # 50 is pulse rate (Hz)
 
 servo.start(7)
 
-face_cascade = cv2.CascadeClassifier('/haarModels/haarcascade_frontalface_default.xml')
-eye_cascade = cv2.CascadeClassifier('/haarModels/haarcascade_eye.xml')
+face_cascade = cv2.CascadeClassifier('haarModels/haarcascade_frontalface_default.xml')
+eye_cascade = cv2.CascadeClassifier('haarModels/haarcascade_eye.xml')
 
 # reading from webcam
 vs = VideoStream(src=0).start()
