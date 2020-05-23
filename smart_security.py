@@ -33,6 +33,7 @@ time.sleep(1.0)
 firstFrame = None
 avg = None
 
+# for servo
 def SetAngle(angle):
 	duty = (angle / 18) + 2
 	GPIO.output(11, True)
@@ -49,7 +50,7 @@ while True:
 	text = "Unoccupied"
 	frame = imutils.resize(frame, width=625)
 
-	# if the frame could not be grabbed, then we have reached the end of the video
+	# if the frame could not be grabbed, then we have reached the end of the video - used for non livestreaming
 	if frame is None:
 		break
 
@@ -59,6 +60,7 @@ while True:
 	
 	for (x,y,w,h) in faces: # only enters loop if non empty
 		print("x is: ", x, " y is: ", y, " w is: ", w, " h is: ", h)
+
 		if(x > 300):
 			SetAngle(180)
 		elif(x<=300 and x > 240):
@@ -71,6 +73,7 @@ while True:
 			SetAngle(36)
 		elif(x<=60 and x >= 0):
 			SetAngle(0)
+
 		cv2.rectangle(haarFrame, (x,y), (x+w,y+h), (255,0,0), 2)
 		roi_gray = grayHaar[y:y+h, x:x+w]                           # create a smaller region inside faces to detect eyes --> won't find eye outside of face
 		roi_color = haarFrame[y:y+h, x:x+w]
@@ -96,11 +99,9 @@ while True:
 
 	# accumulate the weighted average between the current frame and (accumulated)previous frames, then compute the difference between the current frame and running average
 	cv2.accumulateWeighted(firstFrame, avg, 0.5)	# avg is accumulated slight differences in pixels over the iteration of frames, 0.5 is weight for gray frame
-	frameDelta = cv2.absdiff(firstFrame, gray)
+	frameDelta = cv2.absdiff(firstFrame, gray)  # element wise differences new array of differences in pixels
 
-	# compute the absolute elementwise (two arrays) difference between the current frame and first frame
-	#frameDelta = cv2.absdiff(firstFrame, gray) # new array of differences in pixels
-	thresh = cv2.threshold(frameDelta, 55, 255, cv2.THRESH_BINARY)[1] # new array of thresholded (camera inaccuracies) differences in pixels returned as thresh
+	thresh = cv2.threshold(frameDelta, 55, 255, cv2.THRESH_BINARY)[1] # new array of thresheld (camera inaccuracies) differences in pixels returned as thresh
 	
 
 	# dilate the thresholded image to fill in holes, then find contours on thresholded image
@@ -110,7 +111,7 @@ while True:
 	# once we grab contours (tuple of relevant x,y coords highlighting the curves joining a shape)
 	# print(type(cnts))
 	# print(cnts)
-	cnts = imutils.grab_contours(cnts) # grabs only the x,y coord tuple
+	cnts = imutils.grab_contours(cnts) # grabs only the x,y coord tuples
 
 	# loop over the contours - loop through lists inside tuple containing respective contour x,y coords (depending on how many objects were detected separate) - if 1 object, one list in the tuple
 	for c in cnts:
@@ -123,13 +124,12 @@ while True:
 		cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 		text = "Occupied"
 
+
 	# draw the text and timestamp on the frame
 	cv2.putText(frame, "Room Status: {}".format(text), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 	cv2.putText(frame, datetime.datetime.now().strftime("%A %d %B %Y %I:%M:%S%p"), (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 1)
 
-
 	cv2.imshow('Haar Face Detection Algorithm', haarFrame)
-
 
 	# show the frame and record if the user presses a key
 	cv2.imshow("Documented Background", firstFrame)
