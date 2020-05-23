@@ -15,12 +15,12 @@ import numpy
 
 import RPi.GPIO as GPIO
 
-GPIO.setmode(GPIO.BOARD)    # pin #'s are gpio spots
+# GPIO.setmode(GPIO.BOARD)    # pin #'s are gpio spots
 
-GPIO.setup(11, GPIO.OUT)
-servo = GPIO.PWM(11,50)      # 50 is pulse rate (Hz)
+# GPIO.setup(11, GPIO.OUT)
+# servo = GPIO.PWM(11,50)      # 50 is pulse rate (Hz)
 
-servo.start(7)
+# servo.start(7)
 
 
 face_cascade = cv2.CascadeClassifier('haarModels/haarcascade_frontalface_default.xml')
@@ -89,15 +89,16 @@ while True:
 	# detections and every detection is a vector of values --> 7 is the size of each detection vector (7 prediction criterion)
 	# [batchId, classId, confidence, left, top, right, bottom]
 	output = model.forward()
+
 	image_height, image_width, _ = frame.shape
 
 	for detection in output[0,0,:,:]:
-    	confidence = detection[2]		# 2 because confidence is in the 2 spot of the detection vector
+		confidence = detection[2]		# 2 because confidence is in the 2 spot of the detection vector
 		
 		if confidence > 0.5:
 			classID = detection[1]
 			className = idToClassName(classID, classDict)
-			print(str(str(class_id) + " " + str(detection[2])  + " " + class_name))
+			print(str(str(classID) + " " + str(detection[2])  + " " + className))
 			
 			box_x = detection[3] * image_width # detections are % left etc.
 			box_y = detection[4] * image_height
@@ -106,8 +107,8 @@ while True:
 			cv2.rectangle(frame, (int(box_x), int(box_y)), (int(box_width), int(box_height)), (23, 230, 210), thickness=1)
 			cv2.putText(frame, className, (int(box_x), int(box_y+.05*image_height)),cv2.FONT_HERSHEY_SIMPLEX,(.005*image_width),(0, 0, 255))
 
-		if className == 'person':
-			text = "Occupied"
+			if className == 'person':
+				text = "Occupied"
 
 	haarFrame = img
 	grayHaar = cv2.cvtColor(haarFrame, cv2.COLOR_BGR2GRAY)
