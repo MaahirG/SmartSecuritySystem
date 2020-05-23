@@ -103,6 +103,7 @@ while True:
 
 	thresh = cv2.threshold(frameDelta, 55, 255, cv2.THRESH_BINARY)[1] # new array of thresheld (camera inaccuracies) differences in pixels returned as thresh
 	
+
 	# dilate the thresholded image to fill in holes, then find contours on thresholded image
 	thresh = cv2.dilate(thresh, None, iterations=6)  # dilation fills in neighbouring pixels as 1 (for binary) to add pixels to the outer border (dilating pixels in the threshold array)
 	cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)	# CHAIN_APPROX_SIMPLE takes away redundancies when highlighting the curves/joining parts of a threshold frameDelta
