@@ -89,9 +89,10 @@ while True:
 	# detections and every detection is a vector of values --> 7 is the size of each detection vector (7 prediction criterion)
 	# [batchId, classId, confidence, left, top, right, bottom]
 	output = model.forward()
-
+	print(output[0,0,50,6])
 	image_height, image_width, _ = frame.shape
-
+	print(frame.shape)
+	print(output.shape)
 	for detection in output[0,0,:,:]:
 		confidence = detection[2]		# 2 because confidence is in the 2 spot of the detection vector
 		
