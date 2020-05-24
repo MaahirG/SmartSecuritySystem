@@ -85,11 +85,11 @@ while True:
 	# model relies on RGB input not BGR like opencv (swapRB)
 	model.setInput(cv2.dnn.blobFromImage(frame, size=(300, 300), swapRB=True))
 	
-	# Network produces output blob with a shape 1x1xNx7 where N is a number of
+	# Network produces output blob with a shape 1x1xNx7 where N is a number of --> the numbers in shape are the sizes of each vector enclosed by that blob.
 	# detections and every detection is a vector of values --> 7 is the size of each detection vector (7 prediction criterion)
 	# [batchId, classId, confidence, left, top, right, bottom]
 	output = model.forward()
-	print(output[0,0,50,6])
+	print(output[0,0,50,6])  # the 6th option --> bottom of the 50th prediction.. the first two have size 1 so 0 is the only index option
 	image_height, image_width, _ = frame.shape
 	print(frame.shape)
 	print(output.shape)
