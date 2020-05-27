@@ -64,7 +64,7 @@ def idToClassName(class_id, classes):		#classes is a dictionary that holds all c
 		if class_id == key:
 			return value	# returns actual class name -- dog, cat, human etc instead of a class_id (number)
 
-
+# need to change to RPI camera enabled.
 # Start reading from webcam
 vs = VideoStream(src=0).start()
 time.sleep(1.0)
