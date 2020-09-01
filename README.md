@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/joemccann/dillinger.svg?branch=master)](https://travis-ci.org/joemccann/dillinger)
 
 ## V3 Current
-The current version relies on a convolutional neural network and takes into account the ROI of detection and moves a servo motor enabling the security camera to swivel. </br>
+The current version relies on a convolutional neural network and takes into account the ROI of detection and moves a servo motor enabling the security camera to swivel. Also added a flask program to allow web streaming of the realtime detections. </br>
 **Model architecture: Mobilenet v2 SSD** </br> 
 **Training Set: COCO**
 
